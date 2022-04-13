@@ -118,13 +118,10 @@ impl<'a> Ranks<'a> {
         }
 
         // address cannot reduce rank of a higher or equal address
-        match self.get(deps.as_ref(), target_address.clone())? {
-            Some(rank) => {
-                if rank <= unwrapped_caller_rank {
-                    return Err(RanksError::RankTooLow {});
-                }
+        if let Some(rank) = self.get(deps.as_ref(), target_address.clone())? {
+            if rank <= unwrapped_caller_rank {
+                return Err(RanksError::RankTooLow {});
             }
-            None => {}
         }
 
         let attributes = vec![
