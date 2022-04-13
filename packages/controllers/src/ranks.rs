@@ -31,6 +31,7 @@ pub enum RanksError {
 }
 
 // state/logic
+// an IndexedMap might make sense later so that admins of a given level can be easily pulled
 pub struct Ranks<'a>(Map<'a, &'a str, u8>);
 
 // this is the core business logic we expose
@@ -39,25 +40,36 @@ impl<'a> Ranks<'a> {
         Ranks(Map::new(namespace))
     }
 
-    pub fn set<Q: CustomQuery>(&self, deps: DepsMut<Q>, address: Addr, address_rank: u8) -> StdResult<()> {
-        self.0.save(deps.storage, &address.to_string(), &address_rank)
+    pub fn set<Q: CustomQuery>(
+        &self,
+        deps: DepsMut<Q>,
+        address: Addr,
+        address_rank: u8,
+    ) -> StdResult<()> {
+        self.0
+            .save(deps.storage, &address.to_string(), &address_rank)
     }
 
     pub fn get<Q: CustomQuery>(&self, deps: Deps<Q>, address: Addr) -> StdResult<Option<u8>> {
         match self.0.load(deps.storage, &address.to_string()) {
             Ok(val) => Ok(Some(val)),
             Err(StdError::NotFound { .. }) => Ok(None),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 
     /// Returns Ok(true) if this is an address of the indicated rank or higher,
     /// Ok(false) if not, and an Error if we hit an error with Api or Storage usage
-    pub fn is_rank<Q: CustomQuery>(&self, deps: Deps<Q>, caller: &Addr, required_rank: u8) -> StdResult<bool> {
+    pub fn is_rank<Q: CustomQuery>(
+        &self,
+        deps: Deps<Q>,
+        caller: &Addr,
+        required_rank: u8,
+    ) -> StdResult<bool> {
         match self.0.load(deps.storage, &caller.to_string()) {
             Ok(rank) => Ok(rank >= required_rank),
             Err(StdError::NotFound { .. }) => Ok(false),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 
@@ -94,7 +106,7 @@ impl<'a> Ranks<'a> {
                     return Err(RanksError::RankTooLow {});
                 }
                 rank
-            },
+            }
             None => {
                 return Err(RanksError::NoRank {});
             }
@@ -109,9 +121,9 @@ impl<'a> Ranks<'a> {
         match self.get(deps.as_ref(), target_address.clone())? {
             Some(rank) => {
                 if rank <= unwrapped_caller_rank {
-                    return Err(RanksError::RankTooLow {} );
+                    return Err(RanksError::RankTooLow {});
                 }
-            },
+            }
             None => {}
         }
 
@@ -150,7 +162,6 @@ mod tests {
         control.set(deps.as_mut(), address.clone(), 10u8).unwrap();
         let got = control.get(deps.as_ref(), address.clone()).unwrap();
         assert_eq!(Some(10u8), got);
-
     }
 
     #[test]
@@ -175,7 +186,9 @@ mod tests {
         assert!(!(control.is_rank(deps.as_ref(), &imposter, 1u8).unwrap()));
 
         control.assert_rank(deps.as_ref(), &rank10, 10u8).unwrap();
-        let err = control.assert_rank(deps.as_ref(), &imposter, 3u8).unwrap_err();
+        let err = control
+            .assert_rank(deps.as_ref(), &imposter, 3u8)
+            .unwrap_err();
         assert_eq!(RanksError::RankTooLow {}, err);
     }
 
